@@ -1,0 +1,16 @@
+{
+  "name": "factoryflow",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API de suivi de production industrielle",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "mongoose": "^8.0.0",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  }
+}
