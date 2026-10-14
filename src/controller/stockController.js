@@ -180,3 +180,64 @@ export async function updateStock(req, res, next) {
  * Enregistrer une entrée de stock (règle métier: quantité strictement positive)
  * POST /api/stock/entry/:id
  */
+export async function addStockEntry(req, res, next) {
+    try {
+        const { id } = req.params;
+        const { quantity } = req.body;
+
+        if (quantity === undefined) {
+            return res.status(400).json({
+                message_error: "La quantité d'entrée est obligatoire !"
+            });
+        }
+
+        const entryQty = Number(quantity);
+        if (isNaN(entryQty) || entryQty <= 0) {
+            return res.status(400).json({
+                message_error: "La quantité d'entrée doit être un nombre strictement positif !"
+            });
+        }
+
+        let stock = null;
+        if (mongoose.isValidObjectId(id)) {
+            stock = await Stock.findById(id);
+            if (!stock) {
+                stock = await Stock.findOne({ material: id });
+            }
+        }
+
+        if (!stock) {
+            const material = await Material.findOne({ reference: String(id).toUpperCase() });
+            if (material) {
+                stock = await Stock.findOne({ material: material._id });
+            }
+        }
+
+        if (!stock) {
+            return res.status(404).json({
+                message_error: "Stock introuvable pour enregistrer l'entrée !"
+            });
+        }
+
+        // Incrémentation du stock disponible
+        stock.quantityCurrent += entryQty;
+        await stock.save();
+
+        const updatedStock = await Stock.findById(stock._id)
+            .populate("material", "reference name unit")
+            .populate("createdBy", "name email");
+
+        return res.status(200).json({
+            message_succes: "Entrée de stock enregistrée avec succès",
+            quantityAdded: entryQty,
+            stock: updatedStock
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * Supprimer une fiche de stock
+ * DELETE /api/stock/delete/:id
+ */
