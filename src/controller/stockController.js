@@ -131,3 +131,52 @@ export async function getStockById(req, res, next) {
  * Modifier la quantité actuelle du stock
  * PUT /api/stock/update/:id
  */
+export async function updateStock(req, res, next) {
+    try {
+        const { id } = req.params;
+        const { quantityCurrent } = req.body;
+
+        if (quantityCurrent === undefined) {
+            return res.status(400).json({
+                message_error: "La quantité actuelle (quantityCurrent) est obligatoire !"
+            });
+        }
+
+        const newQty = Number(quantityCurrent);
+        if (isNaN(newQty) || newQty < 0) {
+            return res.status(400).json({
+                message_error: "La quantité actuelle doit être un nombre positif ou nul !"
+            });
+        }
+
+        let stock = null;
+        if (mongoose.isValidObjectId(id)) {
+            stock = await Stock.findById(id);
+        }
+
+        if (!stock) {
+            return res.status(404).json({
+                message_error: "Stock introuvable !"
+            });
+        }
+
+        stock.quantityCurrent = newQty;
+        await stock.save();
+
+        const updatedStock = await Stock.findById(stock._id)
+            .populate("material", "reference name unit")
+            .populate("createdBy", "name email");
+
+        return res.status(200).json({
+            message_update: "Stock mis à jour avec succès",
+            stock: updatedStock
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * Enregistrer une entrée de stock (règle métier: quantité strictement positive)
+ * POST /api/stock/entry/:id
+ */
