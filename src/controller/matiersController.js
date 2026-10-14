@@ -41,3 +41,13 @@ export async function createMaterial(req, res, next){
     }
 }
 
+export async function allMaterial(req, res, next){
+    const allMaterial = await Material.find();
+
+    return res.status(200).json({
+        allMaterial : allMaterial
+    })
+
+    next();
+}
+
