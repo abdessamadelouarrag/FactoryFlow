@@ -51,3 +51,37 @@ export async function allMaterial(req, res, next){
     next();
 }
 
+export async function updateMaterial(req, res, next) {
+    try{
+        const {reference} = req.params
+        const {name, unit} = req.body
+
+        if(!reference || !name || !unit){
+            return res.status(400).json({
+                message_error : "obliagation de reference !"
+            })
+        }
+
+        const material = await Material.findOne({reference : reference})
+        const updateM = await Material.updateOne({name : name, unit : unit});
+
+        if(!material){
+            return res.status(400).json({
+                message_error : "il ya aucun reference !"
+            })
+        }
+
+        return res.status(200).json({
+            message_update : "vous aves modifier les info de material...",
+            info_Materiel : {
+                reference : reference,
+                name : name,
+                unit : unit
+            }
+        })
+
+
+    }catch(error){
+        next(error);
+    }
+}
