@@ -85,3 +85,49 @@ export async function getAllStocks(req, res, next) {
 }
 
 
+export async function getStockById(req, res, next) {
+    try {
+        const { id } = req.params;
+
+        let stock = null;
+        if (mongoose.isValidObjectId(id)) {
+            // Recherche directe par ID de stock
+            stock = await Stock.findById(id)
+                .populate("material", "reference name unit")
+                .populate("createdBy", "name email");
+
+            // Si non trouvé, tester si l'ID correspond à l'ObjectId de la matière première
+            if (!stock) {
+                stock = await Stock.findOne({ material: id })
+                    .populate("material", "reference name unit")
+                    .populate("createdBy", "name email");
+            }
+        }
+
+        if (!stock) {
+            const material = await Material.findOne({ reference: String(id).toUpperCase() });
+            if (material) {
+                stock = await Stock.findOne({ material: material._id })
+                    .populate("material", "reference name unit")
+                    .populate("createdBy", "name email");
+            }
+        }
+
+        if (!stock) {
+            return res.status(404).json({
+                message_error: "Stock introuvable !"
+            });
+        }
+
+        return res.status(200).json({
+            stock: stock
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+/**
+ * Modifier la quantité actuelle du stock
+ * PUT /api/stock/update/:id
+ */
