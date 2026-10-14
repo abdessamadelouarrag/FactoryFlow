@@ -241,3 +241,31 @@ export async function addStockEntry(req, res, next) {
  * Supprimer une fiche de stock
  * DELETE /api/stock/delete/:id
  */
+export async function deleteStock(req, res, next) {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({
+                message_error: "Identifiant de stock invalide !"
+            });
+        }
+
+        const deletedStock = await Stock.findByIdAndDelete(id);
+
+        if (!deletedStock) {
+            return res.status(404).json({
+                message_error: "Stock introuvable !"
+            });
+        }
+
+        return res.status(200).json({
+            message_succes: "Stock supprimé avec succès"
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+// Aliases pour flexibilité d'appel
+export const allStocks = getAllStocks;
