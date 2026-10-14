@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 import { positiveNumber, uniqueMaterials } from './validators.js';
 
 const compositionLineSchema = new mongoose.Schema({
-  rawMaterial: {
+  material: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'RawMaterial',
+    ref: 'Material',
     required: true
   },
   quantityPerUnit: {
