@@ -5,7 +5,7 @@ import verifyToken from "../middlewares/verifyToken.js";
 const route = Router();
 
 route.post("/createUser", register);
-route.get("/login", login)
+route.post("/login", login)
 route.post("/logout", verifyToken, logout);
 
 route.get("/me", verifyToken, (req, res) => {
