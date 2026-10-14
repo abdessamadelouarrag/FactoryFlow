@@ -69,3 +69,19 @@ export async function createStock(req, res, next) {
 }
 
 
+export async function getAllStocks(req, res, next) {
+    try {
+        const stocks = await Stock.find()
+            .populate("material", "reference name unit")
+            .populate("createdBy", "name email");
+
+        return res.status(200).json({
+            count: stocks.length,
+            stocks: stocks
+        });
+    } catch (error) {
+        next(error);
+    }
+}
+
+
