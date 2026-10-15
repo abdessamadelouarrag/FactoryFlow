@@ -1,8 +1,8 @@
-import User from "../models/User.js";
+import userRepository from "../repositories/userRepository.js";
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
-import RevokedToken from "../models/RevokedToken.js";
+import revokedTokenRepository from "../repositories/revokedTokenRepository.js";
 
 export async function register(req, res, next){
     try{
@@ -15,8 +15,8 @@ export async function register(req, res, next){
         }
 
         const emailV = email.toLowerCase();
-        const findUser = await User.findOne({email : emailV});
-        const selectAll = await User.find();
+        const findUser = await userRepository.findByEmail(emailV);
+        const selectAll = await userRepository.findAll();
 
         let roleDefaults = "";
 
@@ -34,7 +34,7 @@ export async function register(req, res, next){
 
         const hashPassword = await bcrypt.hash(password, 10);
 
-        const createUser = await User.create({
+        const createUser = await userRepository.create({
             name : name,
             email : emailV,
             password : hashPassword,
@@ -65,7 +65,7 @@ export async function login(req, res, next) {
             })
         }
 
-        const findUser = await User.findOne({email : email});
+        const findUser = await userRepository.findByEmail(email);
 
         if(!findUser){
             return res.status(400).json({
@@ -109,11 +109,7 @@ export async function logout(req, res, next) {
             revokedToken.expiresAt = new Date(req.user.exp * 1000);
         }
 
-        await RevokedToken.updateOne(
-            { tokenHash: req.tokenHash },
-            { $setOnInsert: revokedToken },
-            { upsert: true }
-        );
+        await revokedTokenRepository.revoke(revokedToken);
 
         return res.status(200).json({
             message_succes: "Deconnexion reussie"

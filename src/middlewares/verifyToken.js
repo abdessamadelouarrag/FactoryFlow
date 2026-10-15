@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import { createHash } from "node:crypto";
-import RevokedToken from "../models/RevokedToken.js";
+import revokedTokenRepository from "../repositories/revokedTokenRepository.js";
 
 export async function verifyToken(req, res, next) {
     const authorization = req.headers.authorization;
@@ -39,7 +39,7 @@ export async function verifyToken(req, res, next) {
 
     const tokenHash = createHash("sha256").update(bearer[1]).digest("hex");
     try {
-        if (await RevokedToken.exists({ tokenHash })) {
+        if (await revokedTokenRepository.existsByHash(tokenHash)) {
             return res.status(401).json({
                 message_error: "Token invalide ou deconnecte"
             });

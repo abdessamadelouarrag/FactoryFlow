@@ -5,7 +5,6 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import authRoute from "../src/routes/authRoute.js";
-import { login } from "../src/controller/authController.js";
 import User from "../src/models/User.js";
 import RevokedToken from "../src/models/RevokedToken.js";
 
@@ -38,6 +37,7 @@ test("JWT logout and verification", async (t) => {
     }));
 
     const app = express();
+    app.use(express.json());
     app.use("/api/auth", authRoute);
     app.use((error, req, res, next) => res.status(500).json({ message_error: error.message }));
     const server = app.listen(0, "127.0.0.1");
@@ -46,19 +46,21 @@ test("JWT logout and verification", async (t) => {
         server.close(error => error ? reject(error) : resolve());
     }));
 
-    const request = (path, token) => fetch(
+    const request = (path, token, body) => fetch(
         `http://127.0.0.1:${server.address().port}/api/auth/${path}`,
-        { method: path === "logout" ? "POST" : "GET",
-            headers: token ? { authorization: `Bearer ${token}` } : {} }
+        { method: path === "logout" || path === "login" ? "POST" : "GET",
+            headers: {
+                ...(token ? { authorization: `Bearer ${token}` } : {}),
+                ...(body ? { "Content-Type": "application/json" } : {})
+            },
+            body: body ? JSON.stringify(body) : undefined }
     );
     const signIn = async () => {
-        let body;
-        const res = {
-            status(code) { assert.equal(code, 200); return this; },
-            json(value) { body = value; return this; }
-        };
-        await login({ body: { email: "test@example.com", password: "password" } }, res,
-            error => { throw error; });
+        const response = await request("login", undefined, {
+            email: "test@example.com", password: "password"
+        });
+        assert.equal(response.status, 200);
+        const body = await response.json();
         return body.token;
     };
 
