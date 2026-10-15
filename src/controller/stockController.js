@@ -1,6 +1,5 @@
-import mongoose from "mongoose";
-import Stock from "../models/Stock.js";
-import Material from "../models/Material.js";
+import stockRepository from "../repositories/stockRepository.js";
+import materialRepository from "../repositories/materialRepository.js";
 
 
 export async function createStock(req, res, next) {
@@ -13,13 +12,7 @@ export async function createStock(req, res, next) {
             });
         }
 
-        let materialDoc = null;
-        if (mongoose.isValidObjectId(material)) {
-            materialDoc = await Material.findById(material);
-        }
-        if (!materialDoc) {
-            materialDoc = await Material.findOne({ reference: String(material).toUpperCase() });
-        }
+        const materialDoc = await materialRepository.findByIdentifier(material);
 
         if (!materialDoc) {
             return res.status(404).json({
@@ -27,7 +20,7 @@ export async function createStock(req, res, next) {
             });
         }
 
-        const existingStock = await Stock.findOne({ material: materialDoc._id });
+        const existingStock = await stockRepository.findByMaterialId(materialDoc._id);
         if (existingStock) {
             return res.status(400).json({
                 message_error: "Un stock existe déjà pour cette matière première !"
@@ -48,16 +41,12 @@ export async function createStock(req, res, next) {
             });
         }
 
-        const newStock = await Stock.create({
+        const populatedStock = await stockRepository.create({
             material: materialDoc._id,
             quantityInitial: initQty,
             quantityCurrent: initQty,
             createdBy: userId
         });
-
-        const populatedStock = await Stock.findById(newStock._id)
-            .populate("material", "reference name unit")
-            .populate("createdBy", "name email");
 
         return res.status(201).json({
             message_creation: "Stock initialisé avec succès",
@@ -71,9 +60,7 @@ export async function createStock(req, res, next) {
 
 export async function getAllStocks(req, res, next) {
     try {
-        const stocks = await Stock.find()
-            .populate("material", "reference name unit")
-            .populate("createdBy", "name email");
+        const stocks = await stockRepository.findAll();
 
         return res.status(200).json({
             count: stocks.length,
@@ -89,29 +76,7 @@ export async function getStockById(req, res, next) {
     try {
         const { id } = req.params;
 
-        let stock = null;
-        if (mongoose.isValidObjectId(id)) {
-            // Recherche directe par ID de stock
-            stock = await Stock.findById(id)
-                .populate("material", "reference name unit")
-                .populate("createdBy", "name email");
-
-            // Si non trouvé, tester si l'ID correspond à l'ObjectId de la matière première
-            if (!stock) {
-                stock = await Stock.findOne({ material: id })
-                    .populate("material", "reference name unit")
-                    .populate("createdBy", "name email");
-            }
-        }
-
-        if (!stock) {
-            const material = await Material.findOne({ reference: String(id).toUpperCase() });
-            if (material) {
-                stock = await Stock.findOne({ material: material._id })
-                    .populate("material", "reference name unit")
-                    .populate("createdBy", "name email");
-            }
-        }
+        const stock = await stockRepository.findByIdentifier(id, { populate: true });
 
         if (!stock) {
             return res.status(404).json({
@@ -149,10 +114,7 @@ export async function updateStock(req, res, next) {
             });
         }
 
-        let stock = null;
-        if (mongoose.isValidObjectId(id)) {
-            stock = await Stock.findById(id);
-        }
+        const stock = await stockRepository.findById(id);
 
         if (!stock) {
             return res.status(404).json({
@@ -160,12 +122,7 @@ export async function updateStock(req, res, next) {
             });
         }
 
-        stock.quantityCurrent = newQty;
-        await stock.save();
-
-        const updatedStock = await Stock.findById(stock._id)
-            .populate("material", "reference name unit")
-            .populate("createdBy", "name email");
+        const updatedStock = await stockRepository.updateQuantity(stock, newQty);
 
         return res.status(200).json({
             message_update: "Stock mis à jour avec succès",
@@ -198,20 +155,7 @@ export async function addStockEntry(req, res, next) {
             });
         }
 
-        let stock = null;
-        if (mongoose.isValidObjectId(id)) {
-            stock = await Stock.findById(id);
-            if (!stock) {
-                stock = await Stock.findOne({ material: id });
-            }
-        }
-
-        if (!stock) {
-            const material = await Material.findOne({ reference: String(id).toUpperCase() });
-            if (material) {
-                stock = await Stock.findOne({ material: material._id });
-            }
-        }
+        const stock = await stockRepository.findByIdentifier(id);
 
         if (!stock) {
             return res.status(404).json({
@@ -220,12 +164,7 @@ export async function addStockEntry(req, res, next) {
         }
 
         // Incrémentation du stock disponible
-        stock.quantityCurrent += entryQty;
-        await stock.save();
-
-        const updatedStock = await Stock.findById(stock._id)
-            .populate("material", "reference name unit")
-            .populate("createdBy", "name email");
+        const updatedStock = await stockRepository.updateQuantity(stock, stock.quantityCurrent + entryQty);
 
         return res.status(200).json({
             message_succes: "Entrée de stock enregistrée avec succès",
@@ -245,13 +184,13 @@ export async function deleteStock(req, res, next) {
     try {
         const { id } = req.params;
 
-        if (!mongoose.isValidObjectId(id)) {
+        if (!stockRepository.isValidId(id)) {
             return res.status(400).json({
                 message_error: "Identifiant de stock invalide !"
             });
         }
 
-        const deletedStock = await Stock.findByIdAndDelete(id);
+        const deletedStock = await stockRepository.deleteById(id);
 
         if (!deletedStock) {
             return res.status(404).json({
