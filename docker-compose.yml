@@ -16,11 +16,11 @@ services:
     init: true
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3001}:3000"
     environment:
       NODE_ENV: production
       PORT: 3000
-      MONGO_URI: mongodb://mongo:27017/factoryflow
+      MONGO_URI: ${DOCKER_MONGO_URI:-mongodb://mongo:27017/factoryflow}
       SECRET_KEY: ${SECRET_KEY:?Definir SECRET_KEY dans le fichier .env}
     depends_on:
       mongo:
