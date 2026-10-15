@@ -1,4 +1,4 @@
-import Material from "../models/Material.js"
+import materialRepository from "../repositories/materialRepository.js";
 
 export async function createMaterial(req, res, next){
     try{
@@ -12,7 +12,7 @@ export async function createMaterial(req, res, next){
 
         //deja la reference
 
-        const fondReference = await Material.findOne({reference : reference});
+        const fondReference = await materialRepository.findByReference(reference);
 
         const upperReference = reference.toUpperCase();
 
@@ -22,7 +22,7 @@ export async function createMaterial(req, res, next){
             })
         }
 
-        const createNewMaterial = await Material.create({
+        const createNewMaterial = await materialRepository.create({
             reference : upperReference,
             name : name,
             unit : unit,
@@ -42,13 +42,15 @@ export async function createMaterial(req, res, next){
 }
 
 export async function allMaterial(req, res, next){
-    const allMaterial = await Material.find();
+    try{
+        const allMaterial = await materialRepository.findAll();
 
-    return res.status(200).json({
-        allMaterial : allMaterial
-    })
-
-    next();
+        return res.status(200).json({
+            allMaterial : allMaterial
+        })
+    }catch(error){
+        next(error);
+    }
 }
 
 export async function updateMaterial(req, res, next) {
@@ -62,14 +64,15 @@ export async function updateMaterial(req, res, next) {
             })
         }
 
-        const material = await Material.findOne({reference : reference})
-        const updateM = await Material.updateOne({name : name, unit : unit});
+        const material = await materialRepository.findByReference(reference);
 
         if(!material){
             return res.status(400).json({
                 message_error : "il ya aucun reference !"
             })
         }
+
+        await materialRepository.updateByReference(reference, {name, unit});
 
         return res.status(200).json({
             message_update : "vous aves modifier les info de material...",
