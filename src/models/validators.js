@@ -10,7 +10,7 @@ const positiveNumber = {
 
 const uniqueMaterials = {
   validator: (lines) => {
-    const ids = lines.map((line) => String(line.rawMaterial));
+    const ids = lines.map((line) => String(line.material ?? line.rawMaterial));
     return lines.length > 0 && new Set(ids).size === ids.length;
   },
   message: 'La composition doit contenir au moins une matière, sans doublon.',
