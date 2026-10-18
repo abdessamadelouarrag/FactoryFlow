@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "description": "API de suivi de production industrielle",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon src/server.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "node --test",
+    "test:services": "node --test test/services/*.test.js"
   },
   "engines": {
     "node": ">=20"
