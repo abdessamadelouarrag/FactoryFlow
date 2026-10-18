@@ -1,0 +1,1297 @@
+openapi: 3.0.3
+info:
+  title: 'FactoryFlow API'
+  version: 1.0.0
+  description: 'Industrial production tracking API. Architecture: routes -> controllers -> services -> repositories -> Mongoose. Register and log in, then use Authorize with the JWT. Existing route names and response envelopes are retained for compatibility.'
+servers:
+  -
+    url: /
+    description: 'Current server'
+tags:
+  -
+    name: System
+  -
+    name: Authentication
+  -
+    name: Materials
+  -
+    name: Stocks
+  -
+    name: Products
+  -
+    name: 'Production orders'
+security:
+  -
+    bearerAuth: []
+paths:
+  /health:
+    get:
+      tags:
+        - System
+      operationId: health
+      summary: 'Process health'
+      description: 'Reports that the HTTP process is running. It does not perform a database readiness check.'
+      security: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      operationId: register
+      summary: 'Register a user'
+      description: 'The first user receives ADMIN; subsequent users receive OPERATOR. Client-supplied roles are ignored.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registered'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/createUser:
+    post:
+      tags:
+        - Authentication
+      operationId: createUser
+      summary: 'Legacy registration alias'
+      security: []
+      deprecated: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registered'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      operationId: login
+      summary: 'Sign in'
+      description: 'Returns a unique JWT valid for one day. Use its token value in Swagger Authorize.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      operationId: logout
+      summary: 'Revoke the current token'
+      description: 'Revokes only the current session. Other sessions remain active.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      operationId: me
+      summary: 'Read verified token claims'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/material/newMaterial:
+    post:
+      tags:
+        - Materials
+      operationId: createMaterial
+      summary: 'Create a raw material'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/material/all:
+    get:
+      tags:
+        - Materials
+      operationId: listMaterials
+      summary: 'List raw materials'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/material/update/{reference}':
+    post:
+      tags:
+        - Materials
+      operationId: updateMaterial
+      summary: 'Update a raw material'
+      description: 'Reference is trimmed and uppercased. An unknown material returns 400 for compatibility.'
+      parameters:
+        -
+          $ref: '#/components/parameters/Reference'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MaterialUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaterialUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/stock/newStock:
+    post:
+      tags:
+        - Stocks
+      operationId: createStock
+      summary: 'Initialize stock for a raw material'
+      description: 'Only one stock record per material. Initial and current quantity are initialized together. The authenticated user becomes createdBy.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/stock/all:
+    get:
+      tags:
+        - Stocks
+      operationId: listStocks
+      summary: 'List stock records'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/stock/{id}':
+    get:
+      tags:
+        - Stocks
+      operationId: getStock
+      summary: 'Find stock by stock ID, material ID or reference'
+      parameters:
+        -
+          $ref: '#/components/parameters/StockIdentifier'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/stock/update/{id}':
+    put:
+      tags:
+        - Stocks
+      operationId: updateStock
+      summary: 'Set current stock quantity'
+      description: 'Accepts a stock ObjectId only. quantityInitial remains unchanged.'
+      parameters:
+        -
+          $ref: '#/components/parameters/StockId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/stock/entry/{id}':
+    post:
+      tags:
+        - Stocks
+      operationId: addStockEntry
+      summary: 'Add a positive stock entry'
+      parameters:
+        -
+          $ref: '#/components/parameters/StockIdentifier'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockEntry'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockEntryResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/stock/delete/{id}':
+    delete:
+      tags:
+        - Stocks
+      operationId: deleteStock
+      summary: 'Delete a stock record'
+      parameters:
+        -
+          $ref: '#/components/parameters/StockId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/product/newProduct:
+    post:
+      tags:
+        - Products
+      operationId: createProduct
+      summary: 'Create a product and its composition'
+      description: 'Composition must contain distinct existing materials with positive quantities per unit.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/product/all:
+    get:
+      tags:
+        - Products
+      operationId: listProducts
+      summary: 'List products with material details'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/product/{reference}':
+    get:
+      tags:
+        - Products
+      operationId: getProduct
+      summary: 'Get a product by reference'
+      parameters:
+        -
+          $ref: '#/components/parameters/Reference'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/product/update/{reference}':
+    put:
+      tags:
+        - Products
+      operationId: updateProduct
+      summary: 'Replace product name and composition'
+      parameters:
+        -
+          $ref: '#/components/parameters/Reference'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/product/delete/{reference}':
+    delete:
+      tags:
+        - Products
+      operationId: deleteProduct
+      summary: 'Delete an unused product'
+      description: 'Products referenced by any production order cannot be deleted.'
+      parameters:
+        -
+          $ref: '#/components/parameters/Reference'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /api/production-orders:
+    post:
+      tags:
+        - 'Production orders'
+      operationId: createOrder
+      summary: 'Plan a production order'
+      description: 'ADMIN only. Copies an immutable snapshot of the product composition. Requires an existing OPERATOR; does not reserve or deduct stock.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    get:
+      tags:
+        - 'Production orders'
+      operationId: listOrders
+      summary: 'List accessible production orders'
+      description: 'Administrators see all orders; operators see only their assigned orders.'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/production-orders/{id}':
+    get:
+      tags:
+        - 'Production orders'
+      operationId: getOrder
+      summary: 'Get a production order'
+      parameters:
+        -
+          $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/production-orders/{id}/start':
+    patch:
+      tags:
+        - 'Production orders'
+      operationId: startOrder
+      summary: 'Start a planned order and consume stock'
+      description: 'ADMIN or assigned operator. PLANNED -> IN_PROGRESS. Deducts snapshot quantityPerUnit * order quantity for every material in one MongoDB transaction. Insufficient stock rolls back all deductions. Requires a replica set or Atlas.'
+      parameters:
+        -
+          $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/production-orders/{id}/complete':
+    patch:
+      tags:
+        - 'Production orders'
+      operationId: completeOrder
+      summary: 'Complete an order in progress'
+      description: 'ADMIN or assigned operator. IN_PROGRESS -> COMPLETED. Stock is not deducted again.'
+      parameters:
+        -
+          $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  '/api/production-orders/{id}/cancel':
+    patch:
+      tags:
+        - 'Production orders'
+      operationId: cancelOrder
+      summary: 'Cancel a planned order'
+      description: 'ADMIN or assigned operator. PLANNED -> CANCELLED. Started and completed orders cannot be cancelled; no stock adjustment occurs.'
+      parameters:
+        -
+          $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Reference:
+      name: reference
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: 'Reference, normalized to uppercase'
+    StockIdentifier:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      description: 'Stock ObjectId, material ObjectId or material reference'
+    StockId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-fA-F0-9]{24}$'
+        example: 507f1f77bcf86cd799439011
+      description: 'Stock ObjectId'
+    OrderId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^[a-fA-F0-9]{24}$'
+        example: 507f1f77bcf86cd799439011
+      description: 'Production order ObjectId'
+  responses:
+    BadRequest:
+      description: 'Invalid input'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: 'Missing, expired, revoked or invalid token'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: 'Insufficient permissions'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: 'Resource not found'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: 'Duplicate resource, invalid transition or insufficient stock'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServerError:
+      description: 'Internal server error'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required:
+        - message_error
+      properties:
+        message_error:
+          type: string
+    Success:
+      type: object
+      properties:
+        message_succes:
+          type: string
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Ahmed
+        email:
+          type: string
+          format: email
+          example: ahmed@example.com
+        password:
+          type: string
+          format: password
+          minLength: 1
+          example: change-this-password
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    Registered:
+      type: object
+      properties:
+        message_succes:
+          type: string
+        user:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+    Login:
+      type: object
+      properties:
+        message_login:
+          type: string
+        token:
+          type: string
+        info_user:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+    Claims:
+      type: object
+      properties:
+        sub:
+          type: string
+          description: 'Authenticated user ID'
+        iat:
+          type: integer
+        exp:
+          type: integer
+        jti:
+          type: string
+    Me:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/Claims'
+    MaterialRequest:
+      type: object
+      required:
+        - reference
+        - name
+        - unit
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          example: MAT-ACIER
+        name:
+          type: string
+          minLength: 1
+          example: Acier
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 3
+          example: KG
+    MaterialUpdate:
+      type: object
+      required:
+        - name
+        - unit
+      properties:
+        name:
+          type: string
+          minLength: 1
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 3
+    Material:
+      type: object
+      properties:
+        _id:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        reference:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    MaterialCreated:
+      type: object
+      properties:
+        message_creation:
+          type: string
+        info_Materiel:
+          type: object
+          properties:
+            reference:
+              type: string
+            name:
+              type: string
+    MaterialUpdated:
+      type: object
+      properties:
+        message_update:
+          type: string
+        info_Materiel:
+          type: object
+          properties:
+            reference:
+              type: string
+            name:
+              type: string
+            unit:
+              type: string
+    MaterialList:
+      type: object
+      properties:
+        allMaterial:
+          type: array
+          items:
+            $ref: '#/components/schemas/Material'
+    CompositionInput:
+      type: object
+      required:
+        - material
+        - quantityPerUnit
+      properties:
+        material:
+          type: string
+          minLength: 1
+          description: 'Material reference or MongoDB ObjectId'
+          example: MAT-ACIER
+        quantityPerUnit:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              exclusiveMinimum: true
+            -
+              type: string
+              pattern: '^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
+          description: 'Finite quantity greater than zero. Numeric strings are accepted and must also be greater than zero.'
+          example: 2
+    ProductRequest:
+      type: object
+      required:
+        - reference
+        - name
+        - composition
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          example: PRD-TABLE
+        name:
+          type: string
+          minLength: 1
+          example: Table
+        composition:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompositionInput'
+    ProductUpdate:
+      type: object
+      required:
+        - name
+        - composition
+      properties:
+        name:
+          type: string
+          minLength: 1
+        composition:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CompositionInput'
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        reference:
+          type: string
+        name:
+          type: string
+        composition:
+          type: array
+          items:
+            type: object
+            properties:
+              material:
+                $ref: '#/components/schemas/Material'
+              quantityPerUnit:
+                type: number
+                minimum: 0
+                exclusiveMinimum: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ProductResult:
+      type: object
+      properties:
+        info_product:
+          $ref: '#/components/schemas/Product'
+    ProductCreated:
+      type: object
+      properties:
+        message_creation:
+          type: string
+        info_product:
+          $ref: '#/components/schemas/Product'
+    ProductUpdated:
+      type: object
+      properties:
+        message_update:
+          type: string
+        info_product:
+          $ref: '#/components/schemas/Product'
+    ProductList:
+      type: object
+      properties:
+        allProduct:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    StockRequest:
+      type: object
+      required:
+        - material
+      properties:
+        material:
+          type: string
+          minLength: 1
+          description: 'Material reference or MongoDB ObjectId'
+          example: MAT-ACIER
+        quantityInitial:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+            -
+              type: string
+              pattern: '^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
+          description: 'Finite quantity greater than or equal to zero. Numeric strings are accepted.'
+          example: 100
+          default: 0
+    StockUpdate:
+      type: object
+      required:
+        - quantityCurrent
+      properties:
+        quantityCurrent:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+            -
+              type: string
+              pattern: '^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
+          description: 'Finite quantity greater than or equal to zero. Numeric strings are accepted.'
+          example: 100
+    StockEntry:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              exclusiveMinimum: true
+            -
+              type: string
+              pattern: '^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
+          description: 'Finite quantity greater than zero. Numeric strings are accepted and must also be greater than zero.'
+          example: 2
+    Stock:
+      type: object
+      properties:
+        _id:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        material:
+          $ref: '#/components/schemas/Material'
+        quantityInitial:
+          type: number
+          minimum: 0
+          readOnly: true
+        quantityCurrent:
+          type: number
+          minimum: 0
+        createdBy:
+          type: object
+          properties:
+            _id:
+              type: string
+              pattern: '^[a-fA-F0-9]{24}$'
+              example: 507f1f77bcf86cd799439011
+            name:
+              type: string
+            email:
+              type: string
+              format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    StockResult:
+      type: object
+      properties:
+        stock:
+          $ref: '#/components/schemas/Stock'
+    StockCreated:
+      type: object
+      properties:
+        message_creation:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Stock'
+    StockUpdated:
+      type: object
+      properties:
+        message_update:
+          type: string
+        stock:
+          $ref: '#/components/schemas/Stock'
+    StockEntryResult:
+      type: object
+      properties:
+        message_succes:
+          type: string
+        quantityAdded:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        stock:
+          $ref: '#/components/schemas/Stock'
+    StockList:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        stocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/Stock'
+    OrderRequest:
+      type: object
+      required:
+        - productReference
+        - quantity
+        - assignedOperator
+      properties:
+        productReference:
+          type: string
+          example: PRD-TABLE
+        quantity:
+          oneOf:
+            -
+              type: number
+              minimum: 0
+              exclusiveMinimum: true
+            -
+              type: string
+              pattern: '^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$'
+          description: 'Finite quantity greater than zero. Numeric strings are accepted and must also be greater than zero.'
+          example: 2
+        assignedOperator:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+          description: 'ID of a registered OPERATOR user'
+    SnapshotLine:
+      type: object
+      properties:
+        rawMaterial:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+          description: 'Material ID; historical field name retained'
+        reference:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        quantityPerUnit:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+    ProductionOrder:
+      type: object
+      properties:
+        _id:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        product:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        productReference:
+          type: string
+        productName:
+          type: string
+        quantity:
+          type: number
+          minimum: 0
+          exclusiveMinimum: true
+        compositionSnapshot:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/SnapshotLine'
+        status:
+          type: string
+          enum:
+            - PLANNED
+            - IN_PROGRESS
+            - COMPLETED
+            - CANCELLED
+        assignedOperator:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        createdBy:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+        startedBy:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+          nullable: true
+        completedBy:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+          nullable: true
+        cancelledBy:
+          type: string
+          pattern: '^[a-fA-F0-9]{24}$'
+          example: 507f1f77bcf86cd799439011
+          nullable: true
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    OrderResult:
+      type: object
+      properties:
+        order:
+          $ref: '#/components/schemas/ProductionOrder'
+    OrderList:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductionOrder'
