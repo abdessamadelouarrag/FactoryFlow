@@ -1,120 +1,29 @@
-import userRepository from "../repositories/userRepository.js";
-import bcrypt from "bcryptjs"
-import jwt from "jsonwebtoken";
-import { randomUUID } from "node:crypto";
-import revokedTokenRepository from "../repositories/revokedTokenRepository.js";
+import * as authService from "../services/authService.js";
+import { controllerError } from "../middlewares/errorHandler.js";
 
-export async function register(req, res, next){
-    try{
-        const {name, email, password} = req.body;
-
-        if(!name || !email || !password){
-            return res.status(400).json({
-                message_error : "obligation de tout les champs !"
-            })
-        }
-
-        const emailV = email.toLowerCase();
-        const findUser = await userRepository.findByEmail(emailV);
-        const selectAll = await userRepository.findAll();
-
-        let roleDefaults = "";
-
-        if(selectAll.length === 0){
-            roleDefaults = "ADMIN"
-        }else{
-            roleDefaults = "OPERATOR"
-        }
-
-        if(findUser){
-            return res.status(400).json({
-                message_error : "email deja utiliser !"
-            })
-        }
-
-        const hashPassword = await bcrypt.hash(password, 10);
-
-        const createUser = await userRepository.create({
-            name : name,
-            email : emailV,
-            password : hashPassword,
-            role : roleDefaults
-        })
-
+export async function register(req, res, next) {
+    try {
+        const user = await authService.register(req.body);
         return res.status(201).json({
-            message_succes : "utilisateur est cree ...",
-            user : {
-                name : createUser.name,
-                email : createUser.email
-            }
-        })
-
-    }catch(error){
-        next(error);
-    }
+            message_succes: "utilisateur est cree ...",
+            user: { name: user.name, email: user.email }
+        });
+    } catch (error) { return controllerError(error, res, next); }
 }
 
 export async function login(req, res, next) {
-    try{
-
-        const {email, password} = req.body
-
-        if(!email || !password){
-            return res.status(400).json({
-                message_error : "obligation des chams !"
-            })
-        }
-
-        const findUser = await userRepository.findByEmail(email);
-
-        if(!findUser){
-            return res.status(400).json({
-                message_error : "email ou mot de passe incorrect 1"
-            })
-        }
-
-        const deHashPassword = findUser && await bcrypt.compare(password, findUser.password);
-
-        if(!deHashPassword){
-            return res.status(400).json({
-                message_error : "email ou mot de passe incorrect 2"
-            })
-        }
-
-        //part create jwt
-        const token = jwt.sign({
-            sub : findUser._id.toString()
-        }, process.env.SECRET_KEY, {
-            expiresIn: "1d",
-            jwtid: randomUUID()
-        })
-
+    try {
+        const { token, user } = await authService.login(req.body);
         return res.status(200).json({
-            message_login : "login...",
-            token : token,
-            info_user : {
-                name : findUser.name,
-                email : findUser.email
-            }
-        })
-    }catch(error){
-        next(error)
-    }
+            message_login: "login...", token,
+            info_user: { name: user.name, email: user.email }
+        });
+    } catch (error) { return controllerError(error, res, next); }
 }
 
 export async function logout(req, res, next) {
     try {
-        const revokedToken = { tokenHash: req.tokenHash };
-        if (typeof req.user.exp === "number") {
-            revokedToken.expiresAt = new Date(req.user.exp * 1000);
-        }
-
-        await revokedTokenRepository.revoke(revokedToken);
-
-        return res.status(200).json({
-            message_succes: "Deconnexion reussie"
-        });
-    } catch (error) {
-        next(error);
-    }
+        await authService.logout(req.tokenHash, req.user);
+        return res.status(200).json({ message_succes: "Deconnexion reussie" });
+    } catch (error) { return controllerError(error, res, next); }
 }
