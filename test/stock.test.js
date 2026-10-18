@@ -120,6 +120,13 @@ test("Stock Controller CRUD and Business Rules", async (t) => {
             populate: () => ({ populate: async () => ({ ...activeStock, quantityCurrent: 150 }) })
         }));
 
+        t.mock.method(Stock, "findOneAndUpdate", (filter, update, options) => {
+            assert.equal(filter._id, fakeStockId);
+            assert.deepEqual(update, { $inc: { quantityCurrent: 50 } });
+            assert.deepEqual(options, { new: true, runValidators: true });
+            return { populate: () => ({ populate: async () => ({ ...activeStock, quantityCurrent: 150 }) }) };
+        });
+
         const reqValid = { params: { id: fakeStockId }, body: { quantity: 50 } };
         await addStockEntry(reqValid, res, () => {});
         assert.equal(statusCode, 200);

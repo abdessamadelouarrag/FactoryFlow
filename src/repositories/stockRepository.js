@@ -8,6 +8,14 @@ function populateStock(query) {
 }
 
 const stockRepository = {
+    async consume(materialId, quantity, session) {
+        return Stock.findOneAndUpdate(
+            { material: materialId, quantityCurrent: { $gte: quantity } },
+            { $inc: { quantityCurrent: -quantity } },
+            { new: true, runValidators: true, session }
+        );
+    },
+
     isValidId(id) {
         return mongoose.isValidObjectId(id);
     },
@@ -55,6 +63,14 @@ const stockRepository = {
         stock.quantityCurrent = quantity;
         await stock.save();
         return stockRepository.findDetailsById(stock._id);
+    },
+
+    async incrementQuantity(id, quantity) {
+        return populateStock(Stock.findOneAndUpdate(
+            { _id: id, quantityCurrent: { $lte: Number.MAX_VALUE - quantity } },
+            { $inc: { quantityCurrent: quantity } },
+            { new: true, runValidators: true }
+        ));
     },
 
     async deleteById(id) {
