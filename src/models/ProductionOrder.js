@@ -4,7 +4,7 @@ import { positiveNumber, uniqueMaterials } from './validators.js';
 const snapshotLineSchema = new mongoose.Schema({
   rawMaterial: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'RawMaterial',
+    ref: 'Material',
     required: true
   },
   reference: {
